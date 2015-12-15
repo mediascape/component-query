@@ -1,0 +1,48 @@
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=1.0, minimum-scale=1.0, maximum-scale=1.0">
+<meta http-equiv="Cache-control" content="no-cache">
+<meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, minimum-scale=1.0, maximum-scale=1.0"/>
+<style>
+button{
+	position:absolute;
+	top:80%;
+	left:2%;
+}
+#mediaQ{
+	position:absolute;
+	top:78%;
+	left:20%;
+  color:red;
+}
+</style>
+
+<script  src="https://cdnjs.cloudflare.com/ajax/libs/webcomponentsjs/0.7.17/webcomponents-lite.js"></script>
+<link rel="import" href="wcs/graphic/x-graphic.html">
+<script>
+var sizes = [{w:"1200",h:"800"},{w:"1280",h:"150"},{w:"640",h:"420"},{w:"340",h:"220"},{w:"220",h:"110"},{w:"220",h:"240"},{w:'98',h:'80'}];
+var ind = 0;
+
+function next(){
+  if (ind === sizes.length -1) ind = 0
+  else ind++;
+  document.querySelector('x-graphic').style.width = sizes[ind].w;
+  document.querySelector('x-graphic').style.height = sizes[ind].h;
+
+}
+
+document.addEventListener('component-query',function(e){
+    document.querySelector('#mediaQ').innerHTML = "Media query:"+e.detail.query;
+},false);
+</script>
+</head>
+<body >
+<x-graphic id='graph1' place='Irunea' ></x-graphic>
+<button onclick="next()"> Change Component Size</button>
+<p id="mediaQ"> Media query:</p>
+
+
+</body>
+</html>

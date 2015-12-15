@@ -1,0 +1,281 @@
+
+
+<script>
+ComponentQueryBehavior={
+  properties:{
+    done:{observer:'doneChanged',value:false},
+    mediaList:[],
+    lproperties:{
+      type:Object,
+      value:''
+    }
+
+  },
+  hostAttributes: {
+    elem:null,
+    observer: null,
+    done:false,
+  },
+  created:function(){
+    console.log('component-query created');
+    var self = this;
+    var toObserve = this.impl ? this.impl :this;
+  },
+
+  ready: function() {
+
+    //console.log(this);
+    var self = this;
+    this.done = true;
+  },
+  domReady:function(){
+
+    var self = this;
+    this.done = true;
+    /* content query rules from components style */
+  },
+  detached:function (){
+
+  },
+  attached:function (){
+    this.done = true;
+
+  },
+  readComponentCSS:function (cmp) {
+    var cssRules='';
+    if (cmp.styleSheets)
+    cssRules=cmp.styleSheets.item(0).cssRules;
+    else {
+      /**
+      * Find stylesheet relation width component
+      *
+      */
+      var localName= cmp.localName;
+      var appStyles = document.styleSheets;
+      var ownStyleSheet=null;
+
+      for (var x in appStyles){
+        if (appStyles[x].ownerNode)
+        if (appStyles[x].ownerNode.textContent.indexOf(localName)>-1)
+        ownStyleSheet=appStyles[x];
+      }
+      /**
+      * Find which of them have media condition
+      *
+      */
+
+      cssRules=ownStyleSheet.cssRules;
+    }
+    var mediaList=[];
+
+    for (var x in cssRules){
+
+      if (cssRules[x].cssText)
+      if (cssRules[x].cssText.indexOf('@media')>-1){
+        mediaList.push(cssRules[x]);
+      }
+    }
+
+    return mediaList;
+  },
+  doneChanged:function (){
+    //  console.log()
+
+    var self = this;
+    var MutationObserver = window.MutationObserver || window.WebKitMutationObserver || window.MozMutationObserver;
+    this.observer = new MutationObserver(function(mutations,i) {
+      var mutation = mutations[mutations.length-1];
+      if (mutation.attributeName === 'style'){
+
+        self.updateNodes();
+        var event = new CustomEvent('resize', { 'detail': 'emulate' });
+        window.dispatchEvent(event);
+        self.observer.takeRecords();
+        //console.log(mutations);
+
+      }
+
+    });
+    this.observer.observe(this, {
+      attributes: true,
+      attributeFilter: ["style"],
+      childList: false,
+      characterData: false,
+      attributeOldValue:true
+    });
+
+    this.mediaList = this.readComponentCSS(this);
+  },
+  // Whenever component style is changed update to correspondos @media
+  updateNodes:function (){
+    var applyinRule = false;
+    var mediaRule = this.mediaList.filter(function(el,i){
+      var currentWidth =this.style.width != ""? this.style.width:this.clientWidth;
+      var currentHeight = this.style.height != ""? this.style.height:this.clientHeight;
+      var currentRatio = parseInt(currentWidth)/parseInt(currentHeight);
+      var ua = navigator.userAgent.toLowerCase();
+      var check = function(r) {
+        return r.test(ua);
+      };
+      var isIE =check(/rv:11.0/);
+      if(isIE){
+        var aux = el.media.item(0).split('all and ')[1];
+      }
+      else{
+        var aux =el.media.item(0);
+      }
+      var and=aux.split(' and ');
+      var mediaFlags=Array.apply(null, new Array(and.length)).map(function(){return false});
+
+      for(var j=0;j<and.length;j++){
+        if(and[j].indexOf("max-width")>-1){
+          var width = parseInt(and[j].split('max-width:')[1]);
+          if(isNaN(width)===false)
+          {
+            if (parseInt(currentWidth)<=width)
+            {
+              mediaFlags[j]=true;
+            }
+            else {
+              return false;
+            }
+          }
+        }
+        else if(and[j].indexOf('min-width')>-1){
+          var width = parseInt(and[j].split('min-width:')[1]);
+          if(isNaN(width)===false){
+            if (parseInt(currentWidth)>=width)
+            {
+              mediaFlags[j]=true;
+            }
+            else {
+              return false;
+            }
+          }
+        }
+        if(and[j].indexOf("max-height")>-1){
+          var height = parseInt(and[j].split('max-height:')[1]);
+          if(isNaN(height)===false)
+          {
+            if (parseInt(currentHeight)<=height)
+            {
+              mediaFlags[j]=true;
+            }
+            else {
+              return false;
+            }
+          }
+        }
+        else if(and[j].indexOf('min-height')>-1){
+          var height = parseInt(and[j].split('min-height:')[1]);
+          if(isNaN(height)===false){
+            if (parseInt(currentHeight)>=height)
+            {
+              mediaFlags[j]=true;
+            }
+            else {
+              return false;
+            }
+          }
+        }
+        else if(and[j].indexOf('min-aspect-ratio')>-1){
+          var ratio = and[j].split('min-aspect-ratio:')[1];
+          if(isNaN(parseInt(ratio))===false)
+          {
+            ratio = parseInt(ratio.split('/')[0])/parseInt(ratio.split('/')[1]);
+            if (this.compareAspectRatio(currentRatio,ratio))
+            {
+              mediaFlags[j]=true;
+            }
+            else {
+              return false;
+            }
+          }
+        }
+        else if(and[j].indexOf('orientation')>-1){
+          if(and[j].split('orientation:')[1].indexOf('landscape')>-1){
+            if(parseInt(currentWidth)>=parseInt(currentHeight)){
+              mediaFlags[j]=true;
+            }
+            else {
+              return false;
+            }
+          }
+          else if(and[j].split('orientation:')[1].indexOf('portrait')>-1){
+            if(parseInt(currentWidth)<parseInt(currentHeight)){
+              mediaFlags[j]=true;
+            }
+            else {
+              return false;
+            }
+          }
+        }
+
+      }
+      if(mediaFlags.indexOf(false)>-1){
+        return false;
+      }
+      else{
+        return true;
+      }
+    },this);
+    var obj=[];
+    for(var l=0;l<mediaRule.length;l++){
+      for (var m = 0 ; m < mediaRule[l].cssRules.length; m++){
+        var classes = mediaRule[l].cssRules[m].selectorText.split('.');
+        var selector = classes[0];
+        if (classes[0]!='')
+        obj[selector] = mediaRule[l].cssRules[m].cssText.split('{')[1].split('}')[0];
+        else continue;
+        var style = mediaRule[l].cssRules[m].style;
+        var elem=[];
+        elem =   this.querySelectorAll(''+selector);
+        if(elem.length!=0){
+          for (var i=0;i<style.length;i++){
+            if (!isNaN(i)){
+              for(var k=0;k<elem.length;k++){
+                elem[k].style[style[i]] = style[style[i]];
+                //  this.style[style[i]] = style[style[i]];
+              }
+            }
+          }
+          applyinRule = true;
+          if (selector){
+            this.querySelector(''+selector).style=mediaRule[l].cssRules[m].cssText.split('{')[1].split('}')[0];
+            this.fire('component-query',{query:mediaRule[l].cssRules[m].parentRule.media.mediaText,element:mediaRule[l].cssRules[m].selectorText,style:mediaRule[l].cssRules[m].cssText.split('{')[1].split('}')[0]});
+          }
+        }
+      }
+    }
+  },
+  compareAspectRatio:function(elementRatio,queryRatio){
+    var epsilon_full = 1.01;
+    var epsilon=0.50;
+    var verticalOptions = [1/2,1/3,1/4,1/8,1/10,1/11,1/12,1/13,1/14]
+    var horizontalOptions = [2/1,3/1,4/1,8/1,9/1,10/1,11/1,12/1,13/1,14/1];
+    var fullOptions = [13/9,12/8,12/6,12/7,10/7,9/7,8/9,7/9];
+    var existsVertical = verticalOptions.filter(function(el){
+      if (queryRatio==el) return true;
+    });
+    var existsHorizontal = horizontalOptions.filter(function(el){
+      if (queryRatio==el) return true;
+    });
+    var existsFull = fullOptions.filter(function(el){
+      if (queryRatio==el) return true;
+    });
+    if (existsVertical.length>0){
+      if (Math.abs(existsVertical[0]-elementRatio)<epsilon) return true;
+      else return false;
+    }
+    else if (existsHorizontal.length>0){
+      if (Math.abs(existsHorizontal[0]-elementRatio)<epsilon) return true;
+      else return false;
+    }
+    else if (existsFull.length>0){
+      if (Math.abs(existsFull[0]-elementRatio)<epsilon_full) return true;
+      else return false;
+    }
+  }
+
+}
+</script>
